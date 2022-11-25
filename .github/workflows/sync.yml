@@ -1,0 +1,71 @@
+on:
+  schedule:
+    # 1:05 past midnight UTC
+    - cron: "5 1 * * *"
+
+name: "Sync with upstream"
+jobs:
+  sync:
+    name: "Sync"
+    runs-on: "ubuntu-latest"
+
+    env:
+      DEFAULT_BRANCH: "main"
+
+    steps:
+      - name: "Checkout source code"
+        uses: "actions/checkout@v3"
+        with:
+          # Subsequent actions are not triggered unless using PAT
+          token: "${{ secrets.GH_PAT }}"
+          fetch-depth: 0
+          submodules: true
+
+      - name: "Setup toolchain"
+        uses: "actions-rs/toolchain@v1"
+        with:
+          toolchain: "nightly"
+          profile: "complete"
+          override: true
+
+      - uses: "Swatinem/rust-cache@v2"
+        with:
+          cache-on-failure: true
+
+      - name: "Config Git"
+        run: |
+          git config user.name "Jonathan LEI"
+          git config user.email "me@xjonathan.dev"
+
+      - name: "Update branch"
+        run: |
+          git fetch origin
+          git remote add upstream https://github.com/starkware-libs/cairo
+          git fetch upstream --no-tags
+
+          # Don't force push unnecessarily unless changes are detected
+          if [[ $(git rev-list origin/$DEFAULT_BRANCH..upstream/$DEFAULT_BRANCH --count) -ne 0 ]]; then 
+            # Brings files from `home` to default branch
+            git checkout $DEFAULT_BRANCH
+            git reset --hard upstream/$DEFAULT_BRANCH
+            git checkout origin/home .
+            git add .
+            git commit -m "chore: README and CI changes"
+
+            # Picks the patch/cli branch
+            MERGE_BASE=$(git merge-base upstream/$DEFAULT_BRANCH origin/patch/cli)
+            git cherry-pick $MERGE_BASE..origin/patch/cli
+
+            # Makes sure the updated local branch builds
+            cargo +nightly fmt --all --check
+            cargo build --all --all-targets
+
+            # Includes the lock file
+            git add Cargo.lock
+            git commit -m "chore: update lock file"
+
+            # Pushes updated branch
+            git push --force-with-lease
+          else
+            echo "No changes detected on upstream $DEFAULT_BRANCH"
+          fi
