@@ -1,0 +1,1 @@
+../../crates/formatter/src/bin/cli.rs
