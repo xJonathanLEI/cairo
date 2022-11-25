@@ -1,0 +1,73 @@
+[package]
+name = "cairo-cli"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+casm = { path = "../crates/casm" }
+clap.workspace = true
+colored.workspace = true
+compiler = { path = "../crates/compiler" }
+db_utils = { path = "../crates/db_utils" }
+defs = { path = "../crates/defs" }
+diffy.workspace = true
+filesystem = { path = "../crates/filesystem" }
+formatter = { path = "../crates/formatter" }
+itertools.workspace = true
+languageserver = { path = "../crates/languageserver" }
+log.workspace = true
+lowering = { path = "../crates/lowering" }
+parser = { path = "../crates/parser" }
+project = { path = "../crates/project" }
+salsa.workspace = true
+semantic = { path = "../crates/semantic" }
+serde_json.workspace = true
+sierra = { path = "../crates/sierra" }
+sierra_gas = { path = "../crates/sierra_gas" }
+sierra_generator = { path = "../crates/sierra_generator" }
+sierra_to_casm = { path = "../crates/sierra_to_casm" }
+starknet = { path = "../crates/starknet" }
+syntax = { path = "../crates/syntax" }
+thiserror.workspace = true
+tokio.workspace = true
+tower-lsp.workspace = true
+utils = { path = "../crates/utils" }
+
+[dev-dependencies]
+test-log.workspace = true
+
+[[bin]]
+name = "cairo-compile"
+path = "src/cairo_compile.rs"
+doc = false
+
+[[bin]]
+name = "cairo-lsp"
+path = "src/cairo_lsp.rs"
+doc = false
+
+[[bin]]
+name = "cairo-run"
+path = "src/cairo_run.rs"
+doc = false
+
+[[bin]]
+name = "cairo-fmt"
+path = "src/cairo_fmt.rs"
+doc = false
+
+[[bin]]
+name = "sierra-compile"
+path = "src/sierra_compile.rs"
+doc = false
+
+[[bin]]
+name = "starknet-compile"
+path = "src/starknet_compile.rs"
+doc = false
+
+[[bin]]
+name = "starknet-sierra-compile"
+path = "src/starknet_sierra_compile.rs"
+doc = false
