@@ -1,13 +1,36 @@
 use std::fs;
-use std::path::Path;
+use std::io::{stdin, Read};
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use clap::Parser;
 use colored::Colorize;
 use diffy::{create_patch, PatchFormatter};
+use filesystem::ids::FileId;
 use formatter::{get_formatted_file, FormatterConfig};
-use parser::utils::{get_syntax_root_and_diagnostics_from_file, SimpleParserDatabase};
+use parser::utils::{
+    get_syntax_root_and_diagnostics, get_syntax_root_and_diagnostics_from_file,
+    SimpleParserDatabase,
+};
 use utils::logging::init_logging;
+
+#[derive(Debug)]
+struct ParsingError;
+
+fn get_formatted_str(text: &str, config: &FormatterConfig) -> Result<String, ParsingError> {
+    let db = SimpleParserDatabase::default();
+
+    // Fake file name just to make FileId happy
+    let file_id = FileId::new(&db, PathBuf::from("String"));
+    let (syntax_root, diagnostics) = get_syntax_root_and_diagnostics(&db, file_id, text);
+
+    // Checks if the inner ParserDiagnostic is empty.
+    if !diagnostics.0.leaves.is_empty() {
+        return Err(ParsingError);
+    }
+
+    Ok(get_formatted_file(&db, &syntax_root, config.clone()))
+}
 
 /// Format a specific file and return whether it was already correctly formatted.
 fn format_file(file_path: &str, args: &FormatterArgs, config: &FormatterConfig) -> bool {
@@ -164,6 +187,36 @@ fn main() -> ExitCode {
     let mut all_correct = true;
     if args.files.is_empty() {
         all_correct = format_path(".", &args, 0, &config);
+    } else if args.files.len() == 1 && args.files[0] == "-" {
+        let mut buf = String::new();
+        if stdin().read_to_string(&mut buf).is_err() {
+            eprintln_if_verbose(&"Failed to read from stdin".red(), args.verbose);
+            return ExitCode::FAILURE;
+        };
+
+        let formatted = match get_formatted_str(&buf, &config) {
+            Ok(value) => value,
+            Err(_) => {
+                eprintln!(
+                    "{}",
+                    "A parsing error occurred in stdin. The content was not formatted.".red()
+                );
+                return ExitCode::FAILURE;
+            }
+        };
+
+        if args.check {
+            // When --check is present, never print to stdout
+            if buf == formatted {
+                return ExitCode::SUCCESS;
+            } else {
+                // TODO:
+                return ExitCode::FAILURE;
+            }
+        } else {
+            print!("{}", formatted);
+            return ExitCode::SUCCESS;
+        }
     } else {
         for file in args.files.iter() {
             all_correct &= format_path(file, &args, 0, &config);
